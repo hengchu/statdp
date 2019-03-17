@@ -1,0 +1,52 @@
+language: python
+dist: xenial
+
+python:
+  - 3.5
+  - 3.6
+  - 3.7
+
+env:
+  - ALGORITHM=none
+  - ALGORITHM=noisy_max_v1a
+  - ALGORITHM=noisy_max_v1b
+  - ALGORITHM=noisy_max_v2a
+  - ALGORITHM=noisy_max_v2b
+  - ALGORITHM=SVT
+  - ALGORITHM=iSVT1
+  - ALGORITHM=iSVT2
+  - ALGORITHM=iSVT3
+  - ALGORITHM=iSVT4
+
+cache: pip
+
+install:
+  - pip install tox-travis
+
+script:
+  # test other function except test_core.py which takes a long time
+  - if [ "$ALGORITHM" = "none" ]; then travis_wait 120 tox -- -k 'not test_core.py'; fi
+  # split the algorithm tests into different jobs
+  - if [ "$ALGORITHM" != "none" ]; then travis_wait 120 tox -- -k "test_$ALGORITHM"; fi
+
+after_success:
+  - pip install codecov && codecov
+
+jobs:
+  include:
+    - stage: deploy
+      script:
+        # push to cmla-psu/statdp repository
+        - if [[ "$TRAVIS_BRANCH" = "master" && $TRAVIS_PULL_REQUEST = "false" ]]; then
+            rm -rf .git;
+            git init;
+            git config user.name "Yuxin (Ryan) Wang";
+            git config user.email "ryanwang.cs@gmail.com";
+            git add .;
+            git commit -m "Release of StatDP.";
+            git remote add origin https://ryanwanggit:$GITHUB_TOKEN@github.com/cmla-psu/statdp.git;
+            git push -u --force origin master;
+          fi
+
+notifications:
+  email: false
